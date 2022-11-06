@@ -1,0 +1,21 @@
+{
+    "name": "backdoor/websitebackup",
+    "description": "This will generate a backup of the website.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Abdul Al Mahmud Riaz",
+            "email": "almahmudr1@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Backdoor\\WebsiteBackup\\": "src/"
+        }
+    }
+}
