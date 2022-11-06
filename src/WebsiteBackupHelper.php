@@ -14,7 +14,7 @@ class WebsiteBackupHelper{
 
     public static function findImageURl($image, $base_url){
 
-        $attribute = array('src', 'href', 'data-src', 'data-href', 'srcset');
+        $attribute = array('src', 'href', 'data-src', 'data-href', 'srcset', 'data-bg');
 
         foreach($attribute as $attr){
             if($image->hasAttribute($attr)){
@@ -35,8 +35,7 @@ class WebsiteBackupHelper{
     }
 
     public static function replaceImageURL($image, $path){
-        // replace all images src with local path
-        $attribute = array('src', 'href', 'data-src', 'data-href', 'srcset');
+        $attribute = array('src', 'href', 'data-src', 'data-href', 'srcset' ,'data-bg');
 
         foreach($attribute as $attr){
             if($image->hasAttribute($attr)){
@@ -47,6 +46,13 @@ class WebsiteBackupHelper{
         return $image;
     }
 
+    public static function fileName($link){
+        $filename = basename($link);
+        $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $file_name = pathinfo($filename, PATHINFO_FILENAME);
+        return $file_name.'.'.$file_ext;
+    }
+
     public static function replaceFileName($filename, $path){
         $file_name = $filename;
 
@@ -55,7 +61,7 @@ class WebsiteBackupHelper{
         foreach($list as $item){
             $file_name = str_replace($item, '-', $file_name);
         }
-        // find file name is already exist or not
+
         if(file_exists($path.$file_name)){
             $file_name = rand(1000, 9999).'-'.$file_name;
         }
@@ -87,11 +93,55 @@ class WebsiteBackupHelper{
         return false;
     }
 
-    public static function downloadFile($src , $file_path){
-        if(file_put_contents($file_path, file_get_contents($src)) !== false){
-            return true;
+    public static function checkBlankSpace($src){
+        $orgSrc = $src;
+        $data = [
+            'url' => $src,
+            'status' => false,
+        ];
+        if(substr($src, -1) == ' '){
+            $data['url'] = substr($src, 0, -1);
+            $data['status'] = true;
+            return $data;
         }
-        return false;
+        return $data;
+    }
+
+    public static function downloadFile($src , $file_path){
+
+        $status = true;
+        while($status){
+            $blankSpace = self::checkBlankSpace($src);
+            $status = $blankSpace['status'];
+            $src = $blankSpace['url'];
+        }
+
+        $options  = array('http' => array('user_agent' => 'custom user agent string'));
+        $context  = stream_context_create($options);
+
+        $src = str_replace(' ', '%20', $src);
+
+        $file_size = self::getFileSize($src);
+        if($file_size != false){
+            if($file_size > 1024){
+                ini_set('max_execution_time', 300);
+            }
+            if($file_size > 5000){
+                ini_set('max_execution_time', 600);
+            }
+            if($file_size > 10000){
+                ini_set('max_execution_time', 1000);
+            }
+        }
+
+        try{
+            if(file_put_contents($file_path, file_get_contents($src, false, $context)) !== false){
+                return true;
+            }
+            return false;
+        }catch (\Exception $e){
+            return false;
+        }
     }
 
     public static function isFullURL($url){
@@ -109,8 +159,6 @@ class WebsiteBackupHelper{
     }
 
     public static function generateFolder($path){
-
-        // check direckdir is exist or not
         if(!is_dir($path)){
             mkdir($path, 0777, true);
         }
