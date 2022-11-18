@@ -4,6 +4,12 @@ namespace Backdoor\WebsiteBackup;
 
 class WebsiteBackupHelper{
 
+    private static $folder_path = NULL;
+
+    public static function setFolderPath($path){
+        self::$folder_path = $path;
+    }
+
     public static function getDomain($url){
         $base_url = parse_url($url, PHP_URL_HOST);
         if(!$base_url){
@@ -19,6 +25,7 @@ class WebsiteBackupHelper{
         foreach($attribute as $attr){
             if($image->hasAttribute($attr)){
                 $url = $image->getAttribute($attr);
+                $url = trim($url);
                 if($url && strpos($url, 'data:') === false){
                     if(strpos($url, 'http') === false){
                         // check url has / in first index
@@ -46,15 +53,42 @@ class WebsiteBackupHelper{
         return $image;
     }
 
+    public static function imageFileName($link){
+        $filename = basename($link);
+        $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $file_name = pathinfo($filename, PATHINFO_FILENAME);
+
+        if(strpos($file_ext, '?') !== false){
+            $file_ext = explode('?', $file_ext);
+            $file_ext = $file_ext[0];
+        }
+
+        $image_ext = ['jpg', 'jpeg', 'png', 'apng', 'gif', 'svg', 'webp', 'bmp', 'ico', 'cur', 'tiff', 'tif', 'jfif', 'pjpeg', 'pjp', 'avif'];
+
+
+        $ext = collect($image_ext)->filter(function($item) use ($file_ext){
+            return strpos($file_ext, $item) !== false;
+        })->first();
+
+        if($ext){
+            $file_ext = $ext;
+        }
+
+        return $file_name.'.'.$file_ext;
+    }
+
     public static function fileName($link){
         $filename = basename($link);
         $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
         $file_name = pathinfo($filename, PATHINFO_FILENAME);
-        return $file_name.'.'.$file_ext;
+        return [
+            'name' => trim($file_name),
+            'ext' => trim($file_ext)
+        ];
     }
 
-    public static function replaceFileName($filename, $path){
-        $file_name = $filename;
+    public static function replaceFileName($data, $path){
+        $file_name = $data['name'];
 
         $list = array(' ', '(', ')', '[', ']', '{', '}', '?', '/', ':', ';', '!', '@', '#', '$', '%', '^', '&', '*', '+', '=', '|', '\\', '"', "'", '<', '>', ',','`', '~');
 
@@ -62,85 +96,70 @@ class WebsiteBackupHelper{
             $file_name = str_replace($item, '-', $file_name);
         }
 
-        if(file_exists($path.$file_name)){
-            $file_name = rand(1000, 9999).'-'.$file_name;
+        if(file_exists($path.$file_name.'.'.$data['ext'])){
+            $file_name = time().rand(100, 9999).'-'.$file_name;
         }
 
-        return $file_name;
-    }
-
-
-    public static function getFileName($file){
-        return basename( $file );
-    }
-
-    public static function getExtension($file){
-        return pathinfo( $file , PATHINFO_EXTENSION );
+        return trim($file_name) . '.' . $data['ext'];
     }
 
     public static function getFileSize($src){
-        $ch = curl_init($src);
-        curl_setopt($ch, CURLOPT_NOBODY, true);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HEADER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); //not necessary unless the file redirects (like the PHP example we're using here)
-        $data = curl_exec($ch);
-        curl_close($ch);
-        if (preg_match('/Content-Length: (\d+)/', $data, $matches)) {
-            $contentLength = (int)$matches[1];
-            return $contentLength;
+        try{
+            $ch = curl_init($src);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); //not necessary unless the file redirects (like the PHP example we're using here)
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36');
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+            $data = curl_exec($ch);
+            curl_close($ch);
+            if (preg_match('/Content-Length: (\d+)/', $data, $matches)) {
+                $contentLength = (int)$matches[1];
+                return $contentLength;
+            }
+            return false;
+        }catch(\Exception $e){
+            self::logEntry("Error: ".$e->getMessage());
+            return false;
         }
-        return false;
     }
 
-    public static function checkBlankSpace($src){
-        $orgSrc = $src;
-        $data = [
-            'url' => $src,
-            'status' => false,
-        ];
-        if(substr($src, -1) == ' '){
-            $data['url'] = substr($src, 0, -1);
-            $data['status'] = true;
-            return $data;
+    public static function checkHttpWWW($src){
+        if(strpos($src, 'http') === false){
+            if(strpos($src, 'www') !== false){
+                $src = substr($src, strpos($src, 'www'));
+            }
+        }else{
+            if(strpos($src, 'http') !== false){
+                $src = substr($src, strpos($src, 'http'));
+            }
         }
-        return $data;
+        return $src;
     }
 
-    public static function downloadFile($src , $file_path){
+    public static function generateUUID(){
+        return uniqid().date('YmdHis').rand(100, 9999);
+    }
 
-        $status = true;
-        while($status){
-            $blankSpace = self::checkBlankSpace($src);
-            $status = $blankSpace['status'];
-            $src = $blankSpace['url'];
-        }
+    public static function downloadFile($src, $folderName){
+        $file_path = $folderName . self::replaceFileName(self::fileName($src), $folderName);
 
-        $options  = array('http' => array('user_agent' => 'custom user agent string'));
+        $options  = array('http' => array('user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'));
         $context  = stream_context_create($options);
 
-        $src = str_replace(' ', '%20', $src);
-
-        $file_size = self::getFileSize($src);
-        if($file_size != false){
-            if($file_size > 1024){
-                ini_set('max_execution_time', 300);
-            }
-            if($file_size > 5000){
-                ini_set('max_execution_time', 600);
-            }
-            if($file_size > 10000){
-                ini_set('max_execution_time', 1000);
-            }
-        }
-
+        self::logEntry('Downloading file: '.$src);
         try{
-            if(file_put_contents($file_path, file_get_contents($src, false, $context)) !== false){
-                return true;
+            if (false !== ($data = file_get_contents ($src , false, $context))){
+                return file_put_contents($file_path, $data) ? ['status' => true, 'file_path' => $file_path] : ['status' => false, 'file_path' => $file_path];
             }
-            return false;
+            return ['status' => false, 'file_path' => $file_path];
         }catch (\Exception $e){
-            return false;
+            self::logEntry("Error: ".$e->getMessage());
+            return ['status' => false, 'file_path' => $file_path];
+        }catch(\Symfony\Component\ErrorHandler\Error\FatalError $e){
+            self::logEntry("Error: " . $e->getMessage());
+            return ['status' => false, 'file_path' => $file_path];
         }
     }
 
@@ -162,5 +181,10 @@ class WebsiteBackupHelper{
         if(!is_dir($path)){
             mkdir($path, 0777, true);
         }
+    }
+
+    public static function logEntry($message){
+        $log ='['.date("F j, Y, g:i:s a").'] ' .$message.PHP_EOL;
+        file_put_contents(self::$folder_path.'/log.txt', $log, FILE_APPEND);
     }
 }
