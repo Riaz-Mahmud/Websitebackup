@@ -34,7 +34,7 @@ function siteBackup(){
 
 ```php
 
-array:2 [▼[
+array:3 [▼[
     'error' => false,
     'message' => 'Backup created successfully',
     'path' => 'your_given_path/index.html'
@@ -58,7 +58,7 @@ function siteBackup(){
   $websiteBackup = new WebsiteBackup();
   $backup = $websiteBackup->backup($url, $path);
 
-  if($data['error'] == false){
+  if(!$data['error']){
     echo $data['path'];
   }
 }
@@ -67,7 +67,7 @@ function siteBackup(){
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [License](LICENSE) for more information.
 
 
 ## Security
