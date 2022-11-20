@@ -58,8 +58,8 @@ function siteBackup(){
   $websiteBackup = new WebsiteBackup();
   $backup = $websiteBackup->backup($url, $path);
 
-  if(!$data['error']){
-    echo $data['path'];
+  if(!$backup['error']){
+    echo $backup['path'];
   }
 }
 
