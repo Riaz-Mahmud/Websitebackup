@@ -46,67 +46,83 @@ class WebsiteBackup {
 
         $this->url = $url;
         $this->path = $path;
-        Helper::generateFolder($this->path);
-        Helper::setFolderPath( $this->path );
-        Helper::logEntry('Info: Backup started for '.$this->url);
 
-        $baseUrl = Helper::getDomain( $this->url );
-        Helper::logEntry('Info: Base URL: '.$baseUrl);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-        $status = http_response_code( curl_getinfo($ch, CURLINFO_HTTP_CODE) );
-        Helper::logEntry('Info: '. 'Site Status: '.$status);
-        if ($status != 200) {
+        if(!$this->url || !$this->path){
             $this->data['error'] = true;
-            $this->data['message'] = "Site is not available or not found. Please check the URL. ErrorCode: $status";
-            Helper::logEntry('Error '. $this->data['message']);
+            $this->data['message'] = 'URL or Path is missing';
             return $this->data;
         }
 
-        $output = curl_exec($ch);
+        try{
+            Helper::generateFolder($this->path);
+            Helper::setFolderPath( $this->path );
+            Helper::logEntry('Info: Backup started for '.$this->url);
 
-        $dom = new \DOMDocument();
-        @$dom->loadHTML($output);
-        set_time_limit(0);
+            $baseUrl = Helper::getDomain( $this->url );
+            Helper::logEntry('Info: Base URL: '.$baseUrl);
 
-        foreach ($this->elements as $element => $value) {
-            $links = $dom->getElementsByTagName($element);
-            if($links->length > 0){
-                $folderName = $path.$value['folder'];
-                Helper::generateFolder($folderName);
-                if($element == 'img' || $element == 'div'){
-                    $this->image($links , $baseUrl , $folderName);
-                }else{
-                    $this->common($links, $value['attribute'], $baseUrl, $folderName);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $this->url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+            $status = Helper::get_http_response_code($this->url);
+            Helper::logEntry('Info: '. 'Site Status: '.$status);
+            if ($status != 200) {
+                $this->data['error'] = true;
+                $this->data['message'] = "Site is not available or not found. Please check the URL. ErrorCode: $status";
+                Helper::logEntry('Error '. $this->data['message']);
+                return $this->data;
+            }
+
+            $output = curl_exec($ch);
+
+            $dom = new \DOMDocument();
+            @$dom->loadHTML($output);
+            set_time_limit(0);
+
+            foreach ($this->elements as $element => $value) {
+                $links = $dom->getElementsByTagName($element);
+                if($links->length > 0){
+                    $folderName = $path.$value['folder'];
+                    Helper::generateFolder($folderName);
+                    if($element == 'img' || $element == 'div'){
+                        $this->image($links , $baseUrl , $folderName);
+                    }else{
+                        $this->common($links, $value['attribute'], $baseUrl, $folderName);
+                    }
                 }
             }
-        }
 
-        $html = $dom->saveHTML();
-        $html = $this->downloadContent($html);
-        file_put_contents($path.'/index.html', $html);
+            $html = $dom->saveHTML();
+            $html = $this->downloadContent($html);
+            file_put_contents($path.'/index.html', $html);
 
-        curl_close($ch);
+            curl_close($ch);
 
-        $this->data['error'] = false;
-        $this->data['message'] = 'Backup created successfully';
-        $this->data['path'] = $path . '/index.html';
+            $this->data['error'] = false;
+            $this->data['message'] = 'Backup created successfully';
+            $this->data['path'] = $path . '/index.html';
 
-        Helper::logEntry('Info: '. $this->data['message']. ' Path: '.$this->data['path'] );
+            Helper::logEntry('Info: '. $this->data['message']. ' Path: '.$this->data['path'] );
 
-        Helper::logEntry('Download Queue: Unsuccesful download links =>');
-        foreach ($this->downloadQueue as $value) {
-            if($value['status'] == 'pending'){
-                Helper::logEntry('Pending Queue: link:'. $value['url'] . ' status:'. $value['status']);
+            Helper::logEntry('Download Queue: Unsuccesful download links =>');
+            foreach ($this->downloadQueue as $value) {
+                if($value['status'] == 'pending'){
+                    Helper::logEntry('Pending Queue: link:'. $value['url'] . ' status:'. $value['status']);
+                }
             }
+
+            set_time_limit(30);
+
+            return $this->data;
+
+        }catch(\Exception $e){
+            $this->data['error'] = true;
+            $this->data['message'] = $e->getMessage();
+            Helper::logEntry('Error: '. $this->data['message']);
+            set_time_limit(30);
+            return $this->data;
         }
-
-        set_time_limit(30);
-
-        return $this->data;
     }
 
     protected function downloadContent($html){

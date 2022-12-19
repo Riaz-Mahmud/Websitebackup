@@ -10,6 +10,11 @@ class WebsiteBackupHelper{
         self::$folder_path = $path;
     }
 
+    public static function get_http_response_code($url) {
+        $headers = get_headers($url);
+        return substr($headers[0], 9, 3);
+    }
+
     public static function getDomain($url){
         $base_url = parse_url($url, PHP_URL_HOST);
         if(!$base_url){
@@ -64,7 +69,6 @@ class WebsiteBackupHelper{
         }
 
         $image_ext = ['jpg', 'jpeg', 'png', 'apng', 'gif', 'svg', 'webp', 'bmp', 'ico', 'cur', 'tiff', 'tif', 'jfif', 'pjpeg', 'pjp', 'avif'];
-
 
         $ext = collect($image_ext)->filter(function($item) use ($file_ext){
             return strpos($file_ext, $item) !== false;
@@ -178,8 +182,12 @@ class WebsiteBackupHelper{
     }
 
     public static function generateFolder($path){
-        if(!is_dir($path)){
-            mkdir($path, 0777, true);
+        try{
+            if(!is_dir($path)){
+                mkdir($path, 0777, true);
+            }
+        }catch (\Exception $e){
+            self::logEntry("Error: ".$e->getMessage());
         }
     }
 
