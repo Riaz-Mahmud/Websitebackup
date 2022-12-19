@@ -147,7 +147,8 @@ class WebsiteBackupHelper{
     }
 
     public static function downloadFile($src, $folderName){
-        $file_path = $folderName . self::replaceFileName(self::fileName($src), $folderName);
+        $file_name_ext = self::replaceFileName(self::fileName($src), $folderName);
+        $file_path = $folderName . $file_name_ext;
 
         $options  = array('http' => array('user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'));
         $context  = stream_context_create($options);
@@ -155,15 +156,15 @@ class WebsiteBackupHelper{
         self::logEntry('Downloading file: '.$src);
         try{
             if (false !== ($data = file_get_contents ($src , false, $context))){
-                return file_put_contents($file_path, $data) ? ['status' => true, 'file_path' => $file_path] : ['status' => false, 'file_path' => $file_path];
+                return file_put_contents($file_path, $data) ? ['status' => true, 'file_path' => $file_path, 'file_name_ext' => $file_name_ext] : ['status' => false, 'file_path' => $file_path, 'file_name_ext' => $file_name_ext];
             }
-            return ['status' => false, 'file_path' => $file_path];
+            return ['status' => false, 'file_path' => $file_path, 'file_name_ext' => $file_name_ext];
         }catch (\Exception $e){
             self::logEntry("Error: ".$e->getMessage());
-            return ['status' => false, 'file_path' => $file_path];
+            return ['status' => false, 'file_path' => $file_path, 'file_name_ext' => $file_name_ext];
         }catch(\Symfony\Component\ErrorHandler\Error\FatalError $e){
             self::logEntry("Error: " . $e->getMessage());
-            return ['status' => false, 'file_path' => $file_path];
+            return ['status' => false, 'file_path' => $file_path, 'file_name_ext' => $file_name_ext];
         }
     }
 

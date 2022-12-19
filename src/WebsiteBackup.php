@@ -8,6 +8,7 @@ class WebsiteBackup {
 
     protected $url = NULL;
     protected $path = NULL;
+    protected $filePath = NULL;
     protected $defaultElement = 'websitebackupuuid';
 
     protected $data = [
@@ -42,10 +43,11 @@ class WebsiteBackup {
     protected $downloadQueue = [];
     protected $maxExecutionTime = 30;
 
-    public function backup($url , $path){
+    public function backup($url , $path, $filePath){
 
         $this->url = $url;
         $this->path = $path;
+        $this->filePath = $filePath;
 
         if(!$this->url || !$this->path){
             $this->data['error'] = true;
@@ -84,11 +86,12 @@ class WebsiteBackup {
                 $links = $dom->getElementsByTagName($element);
                 if($links->length > 0){
                     $folderName = $path.$value['folder'];
+                    $fileFolder = $this->filePath.$value['folder'];
                     Helper::generateFolder($folderName);
                     if($element == 'img' || $element == 'div'){
-                        $this->image($links , $baseUrl , $folderName);
+                        $this->image($links , $baseUrl , $folderName, $fileFolder);
                     }else{
-                        $this->common($links, $value['attribute'], $baseUrl, $folderName);
+                        $this->common($links, $value['attribute'], $baseUrl, $folderName , $fileFolder);
                     }
                 }
             }
@@ -140,10 +143,10 @@ class WebsiteBackup {
                                 $this->downloadQueue[$key]['status'] = 'success';
                                 if($queue['type'] == 'image'){
                                     $item->removeAttribute($this->defaultElement);
-                                    $item = Helper::replaceImageURL($item , '/'.$saveFile['file_path']);
+                                    $item = Helper::replaceImageURL($item , '/'. $queue['fileFolder']. $saveFile['file_name_ext']);
                                 }else{
                                     $item->removeAttribute($this->defaultElement);
-                                    $item->setAttribute($queue['attribute'] , '/'.$saveFile['file_path']);
+                                    $item->setAttribute($queue['attribute'] , '/'. $queue['fileFolder'] . $saveFile['file_name_ext']);
                                 }
                             }
                         }
@@ -155,7 +158,7 @@ class WebsiteBackup {
         return $html;
     }
 
-    protected function common($list, $attribute , $baseUrl , $folderName){
+    protected function common($list, $attribute , $baseUrl , $folderName, $fileFolder){
         foreach ($list as $item) {
             if($item->hasAttribute($attribute)){
                 $url = $item->getAttribute($attribute);
@@ -171,6 +174,7 @@ class WebsiteBackup {
                             'url' => Helper::checkHttpWWW($url),
                             'path' => $url,
                             'folder' => $folderName,
+                            'fileFolder' => $fileFolder,
                             'attribute' => $attribute,
                             'type' => 'common',
                             'uuid' => $uuid,
@@ -186,7 +190,7 @@ class WebsiteBackup {
         }
     }
 
-    protected function image($images , $baseUrl , $folderName){
+    protected function image($images , $baseUrl , $folderName, $fileFolder){
         foreach ($images as $image) {
             $src = Helper::findImageURl($image , $baseUrl);
             if($src != false){
@@ -198,6 +202,7 @@ class WebsiteBackup {
                         'url' => Helper::checkHttpWWW($src),
                         'path' => $src,
                         'folder' => $folderName,
+                        'fileFolder' => $fileFolder,
                         'type' => 'image',
                         'uuid' => $uuid,
                         'status' => 'pending',
