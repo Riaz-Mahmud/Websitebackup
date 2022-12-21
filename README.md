@@ -22,6 +22,7 @@ function siteBackup(){
 
     $url = 'link to your website page to backup';
     $path = 'path to save backup file';
+    $filePath = 'path to set as file path in backup file. This is optional. If not set, it will use the $path';
 
     $websiteBackup = new WebsiteBackup();
     $backup = $websiteBackup->backup($url, $path);
@@ -52,15 +53,16 @@ use Backdoor\WebsiteBackup\WebsiteBackup;
 ```php
 
 function siteBackup(){
-  $url = 'link to your website page to backup';
-  $path = 'path to save backup file';
+    $url = 'link to your website page to backup';
+    $path = 'path to save backup file';
+    $filePath = 'path to set as file path in backup file. This is optional. If not set, it will use the $path';
 
-  $websiteBackup = new WebsiteBackup();
-  $backup = $websiteBackup->backup($url, $path);
+    $websiteBackup = new WebsiteBackup();
+    $backup = $websiteBackup->backup($url, $path, $filePath);
 
-  if(!$backup['error']){
-    echo $backup['path'];
-  }
+    if(!$backup['error']){
+        echo $backup['path'];
+    }
 }
 
 ```

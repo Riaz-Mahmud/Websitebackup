@@ -38,20 +38,48 @@ class WebsiteBackup {
             'attribute' => 'data-bg',
             'folder' => '/div'.'/',
         ],
+        'video' => [
+            'attribute' => 'src',
+            'folder' => '/video'.'/',
+        ],
+        'video' => [
+            'attribute' => 'poster',
+            'folder' => '/video'.'/',
+        ],
+        'audio' => [
+            'attribute' => 'src',
+            'folder' => '/audio'.'/',
+        ],
+        'div' => [
+            'attribute' => 'data-bg',
+            'folder' => '/div'.'/',
+        ],
+        'embed' => [
+            'attribute' => 'src',
+            'folder' => '/embed'.'/',
+        ],
+        'object' => [
+            'attribute' => 'data',
+            'folder' => '/object'.'/',
+        ],
+        'track' => [
+            'attribute' => 'src',
+            'folder' => '/track'.'/',
+        ],
     ];
 
     protected $downloadQueue = [];
     protected $maxExecutionTime = 30;
 
-    public function backup($url , $path, $filePath){
+    public function backup($url , $path, $filePath = NULL){
 
         $this->url = $url;
         $this->path = $path;
-        $this->filePath = $filePath;
+        $this->filePath = $filePath ? $filePath : $path;
 
-        if(!$this->url || !$this->path){
+        if(!$this->url || !$this->path || !$this->filePath){
             $this->data['error'] = true;
-            $this->data['message'] = 'URL or Path is missing';
+            $this->data['message'] = 'URL or Path or File Path is missing';
             return $this->data;
         }
 
